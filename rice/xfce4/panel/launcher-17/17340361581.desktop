@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Search
+Comment=search for lazy people
+GenericName=Launcher
+Categories=GNOME;GTK;Utility;
+TryExec=/usr/bin/ulauncher
+Exec=env GDK_BACKEND=x11 /usr/bin/ulauncher --hide-window
+Icon=preferences-system-search
+Terminal=false
+Type=Application
+X-XFCE-Source=file:///usr/share/applications/ulauncher.desktop
+Path=
+StartupNotify=false
