@@ -13,5 +13,10 @@ This project helps transform your distro to AmogOS woah!
 
 Wallpapers from [AmogOS Wallpapers](https://github.com/amog-os/AmogOS-Wallpapers) & anything else idk
 
+# Supported Distros
+
+Ubuntu (and any based off it), Arch (and any based off it), Debian (and any based off it), Fedora (anything else that like it too)
+ and more not bothered to continue.
+
 # Licence
 See license file pls
