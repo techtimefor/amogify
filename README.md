@@ -11,7 +11,7 @@ This project helps transform your distro to AmogOS woah!
 
 # Thanks
 
-Wallpapers from [AmogOS Wallpapers](https://github.com/amog-os/AmogOS-Wallpapers] & anything else idk
+Wallpapers from [AmogOS Wallpapers](https://github.com/amog-os/AmogOS-Wallpapers) & anything else idk
 
 # Licence
 See license file pls
