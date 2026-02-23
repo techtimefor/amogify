@@ -1,5 +1,7 @@
 ## Amogify
 
+> Project archived, sorry to disappoint but after a ton of work ive decided to shift my focus on the iso builds instead,  this project was experimental and not intended to work that well anyways. Its fragile as every distro is different and changes can brreak it.
+
 > this project is experimental my lazy aah isnt responsible for what happens to your pc
 
 # About
