@@ -1,18 +1,19 @@
 import sys
 import os
+import time
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
-                             QLabel, QHBoxLayout, QPlainTextEdit, QStackedWidget)
-from PyQt6.QtCore import Qt, QProcess
+                             QLabel, QHBoxLayout, QStackedWidget, QFrame)
+from PyQt6.QtCore import Qt, QProcess, QTimer
 from PyQt6.QtGui import QPixmap, QLinearGradient, QPalette, QBrush, QColor
 
 class AmogOSGui(QWidget):
     def __init__(self):
         super().__init__()
-        self.process = None
+        self.terminal_process = None
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle('Amogify')
+        self.setWindowTitle('AmogOS Control Center')
         self.setFixedSize(700, 550)
 
         # 1. VISUAL GRADIENT
@@ -35,11 +36,6 @@ class AmogOSGui(QWidget):
             #amog_btn { background-color: #ff1a1a; font-size: 16px; border: none; }
             #amog_btn:hover { background-color: #ff4d4d; }
             #back_btn { background-color: #333; margin-top: 10px; }
-            QPlainTextEdit {
-                background-color: rgba(0, 0, 0, 180);
-                border: 1px solid #ff4444; border-radius: 8px; color: #00ff00;
-                font-family: 'Monospace'; font-size: 12px;
-            }
             QLabel#title { font-size: 42px; font-weight: 900; color: white; }
         """)
 
@@ -57,20 +53,16 @@ class AmogOSGui(QWidget):
         
         btn_amog = QPushButton("AMOGIFY SYSTEM")
         btn_amog.setObjectName("amog_btn")
-        # Needs Sudo
-        btn_amog.clicked.connect(lambda: self.start_task("install.sh", "Installing AmogOS...", sudo=True))
+        btn_amog.clicked.connect(lambda: self.run_terminal_task("install.sh"))
         
         btn_undo = QPushButton("UN-AMOGIFY (UNDO)")
-        # Needs Sudo
-        btn_undo.clicked.connect(lambda: self.start_task("uninstall.sh", "Ejecting Imposter...", sudo=True))
+        btn_undo.clicked.connect(lambda: self.run_terminal_task("uninstall.sh"))
         
         h_buttons = QHBoxLayout()
         btn_support = QPushButton("Support")
-        # No Sudo
-        btn_support.clicked.connect(lambda: self.start_task("support.sh", "Emergency Meeting...", sudo=False))
+        btn_support.clicked.connect(lambda: self.run_terminal_task("support.sh", use_sudo=False))
         btn_about = QPushButton("About")
-        # No Sudo
-        btn_about.clicked.connect(lambda: self.start_task("about.sh", "System Info...", sudo=False))
+        btn_about.clicked.connect(lambda: self.run_terminal_task("about.sh", use_sudo=False))
         
         h_buttons.addWidget(btn_support)
         h_buttons.addWidget(btn_about)
@@ -80,21 +72,17 @@ class AmogOSGui(QWidget):
         menu_layout.addWidget(btn_undo)
         menu_layout.addLayout(h_buttons)
 
-        # --- SCREEN 2: TERMINAL ---
+        # --- SCREEN 2: EMBEDDED XFCE TERMINAL ---
         self.terminal_widget = QWidget()
         term_layout = QVBoxLayout(self.terminal_widget)
-        self.term_title = QLabel("Executing...")
-        self.term_title.setObjectName("title")
-        self.term_title.setStyleSheet("font-size: 24px;")
-        term_layout.addWidget(self.term_title)
-
-        self.terminal_output = QPlainTextEdit()
-        self.terminal_output.setReadOnly(True)
-        term_layout.addWidget(self.terminal_output)
+        
+        # This frame acts as the container for xfce4-terminal
+        self.terminal_container = QFrame()
+        self.terminal_container.setStyleSheet("background-color: black; border: 2px solid #ff4444;")
+        term_layout.addWidget(self.terminal_container)
 
         self.btn_back = QPushButton("BACK TO MENU")
         self.btn_back.setObjectName("back_btn")
-        self.btn_back.setVisible(False)
         self.btn_back.clicked.connect(self.show_menu)
         term_layout.addWidget(self.btn_back)
 
@@ -102,69 +90,44 @@ class AmogOSGui(QWidget):
         self.stack.addWidget(self.terminal_widget)
         self.master_layout.addWidget(self.stack)
 
-        # 3. CREWMATE OVERLAY (Fixed pathing and layering)
+        # 3. CREWMATE OVERLAY
         self.crewmate = QLabel(self)
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Using normpath to handle the '..' properly
         asset_path = os.path.normpath(os.path.join(script_dir, "assets", "amogus.webp"))
         
         if os.path.exists(asset_path):
             pix = QPixmap(asset_path)
-            if not pix.isNull():
-                scaled_pix = pix.scaled(180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                self.crewmate.setPixmap(scaled_pix)
-                self.crewmate.setFixedSize(scaled_pix.size())
-                self.crewmate.move(510, 370) # Static position over the bottom right
-                self.crewmate.raise_() 
-            else:
-                print("Warning: Failed to load image. Is libqt6imageformats6 installed?")
-        else:
-            print(f"Warning: Asset not found at {asset_path}")
+            scaled_pix = pix.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio)
+            self.crewmate.setPixmap(scaled_pix)
+            self.crewmate.move(530, 380)
+            self.crewmate.raise_()
 
     def show_menu(self):
+        if self.terminal_process:
+            self.terminal_process.terminate()
         self.stack.setCurrentIndex(0)
-        self.btn_back.setVisible(False)
-        self.crewmate.raise_() # Ensure he stays on top
-
-    def start_task(self, script_name, title_text, sudo=False):
-        self.terminal_output.clear()
-        self.term_title.setText(title_text)
-        self.stack.setCurrentIndex(1)
-        self.btn_back.setVisible(False)
         self.crewmate.raise_()
-        
-        self.process = QProcess()
-        self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-        self.process.readyReadStandardOutput.connect(self.handle_output)
-        self.process.finished.connect(self.task_finished)
+
+    def run_terminal_task(self, script_name, use_sudo=True):
+        self.stack.setCurrentIndex(1)
+        self.crewmate.raise_()
         
         base_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.normpath(os.path.join(base_dir, "..", "options", script_name))
         
-        if os.path.exists(script_path):
-            os.chmod(script_path, 0o755)
-            if sudo:
-                # Triggers password UI
-                self.process.start("pkexec", ["bash", script_path])
-            else:
-                # Runs as current user, no password popup
-                self.process.start("bash", [script_path])
-        else:
-            self.terminal_output.appendPlainText(f"Error: {script_name} not found at {script_path}")
-            self.btn_back.setVisible(True)
-
-    def handle_output(self):
-        data = self.process.readAllStandardOutput().data().decode()
-        self.terminal_output.insertPlainText(data)
-        self.terminal_output.verticalScrollBar().setValue(self.terminal_output.verticalScrollBar().maximum())
-
-    def task_finished(self, exit_code, exit_status):
-        if exit_code != 0:
-            self.terminal_output.appendPlainText(f"\n[!] ERROR: Task failed or cancelled (Code: {exit_code})")
-        else:
-            self.terminal_output.appendPlainText("\n--- MISSION ACCOMPLISHED ---")
+        # Embed XFCE Terminal into the window
+        # We use the --hold flag so you can see the results before closing
+        cmd = ["xfce4-terminal", f"--parent-id={int(self.terminal_container.winId())}", "--hold", "-e"]
         
-        self.btn_back.setVisible(True)
+        if use_sudo:
+            exec_cmd = f"pkexec bash {script_path}"
+        else:
+            exec_cmd = f"bash {script_path}"
+            
+        cmd.append(exec_cmd)
+        
+        self.terminal_process = QProcess(self)
+        self.terminal_process.start(cmd[0], cmd[1:])
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
