@@ -8,7 +8,7 @@ BUDGIE_RICE_DIR="$REPO_DIR/rice/budgie"
 AMOG_CONFIG="$USER_HOME/.config/amogos"
 ASSETS_DIR="$USER_HOME/amogify/gui/assets"
 
-# 2. SYSTEM DEPENDENCIES & ARC THEME
+# 2. SYSTEM DEPENDENCIES
 echo "[1/6] Requisitioning Gear..."
 if command -v pacman &> /dev/null; then
     sudo pacman -S --noconfirm budgie-desktop budgie-control-center papirus-icon-theme fastfetch wget python
@@ -63,39 +63,41 @@ cat <<EOF > "$AMOG_CONFIG/fastfetch.jsonc"
 }
 EOF
 
-# 5. CREATE THE PYTHON RICE ENGINE
-echo "[4/6] Creating Python Rice Engine..."
-cat <<'EOF' > "$AMOG_CONFIG/apply_rice.py"
+# 5. RUN PYTHON PATH-SWAP (Now run BY this script)
+echo "[4/6] Running Python Path-Swap Engine..."
+python3 - <<PYTHON_END
 import os
-import subprocess
 
-home = os.path.expanduser("~")
-rice_path = os.path.join(home, "amogify/rice/budgie")
+home = "$USER_HOME"
+rice_dir = "$BUDGIE_RICE_DIR"
+files = ["amogos-budgie-desktop.txt", "amogos-budgie-panel.txt", "amogos-interface.txt"]
 
-def apply_rice(file_name, dconf_path):
-    full_path = os.path.join(rice_path, file_name)
-    if os.path.exists(full_path):
-        with open(full_path, 'r') as f:
-            content = f.read().replace("/home/deez", home)
-        process = subprocess.Popen(['dconf', 'load', dconf_path], stdin=subprocess.PIPE, text=True)
-        process.communicate(input=content)
+for file_name in files:
+    file_path = os.path.join(rice_dir, file_name)
+    if os.path.exists(file_path):
+        print(f"Amogifying {file_name}...")
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        # Replace the dev path with the actual user home
+        new_content = content.replace("/home/deez", home)
+        
+        with open(file_path, 'w') as f:
+            f.write(new_content)
+PYTHON_END
 
-apply_rice("amogos-budgie-desktop.txt", "/org/gnome/desktop/background/")
-apply_rice("amogos-budgie-panel.txt", "/com/solus-project/budgie-panel/")
-apply_rice("amogos-interface.txt", "/org/gnome/desktop/interface/")
-EOF
-
-# 6. CREATE THE SHELL SESSION WRAPPER
+# 6. CREATE THE BASH SESSION WRAPPER
 echo "[5/6] Creating Shell session wrapper..."
 cat <<EOF > /tmp/amogos-session
 #!/bin/bash
 export XDG_CURRENT_DESKTOP=Budgie
 export XDG_MENU_PREFIX=budgie-
 
-# Run the Python rice engine to swap paths and apply theme
-python3 "$AMOG_CONFIG/apply_rice.py"
+# Since we already ran the Python swap, we just load the files directly
+dconf load /org/gnome/desktop/background/ < "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt"
+dconf load /com/solus-project/budgie-panel/ < "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt"
+dconf load /org/gnome/desktop/interface/ < "$BUDGIE_RICE_DIR/amogos-interface.txt"
 
-# Launch the actual desktop
 exec budgie-desktop
 EOF
 
@@ -116,5 +118,6 @@ EOF
 
 sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$AMOG_CONFIG"
 echo "-------------------------------------------------------"
-echo "INSTALL COMPLETE. Log out and select AmogOS."
+echo "DONE. Python has finished the path-swap."
+echo "Log out and select AmogOS."
 echo "-------------------------------------------------------"
