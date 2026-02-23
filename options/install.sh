@@ -101,11 +101,22 @@ EOF
 chown -R "$CURRENT_USER":"$CURRENT_USER" "$AMOG_CONFIG"
 
 echo "[TASK 6/6] Establishing Session..."
+
+# Create wrapper script
+cat > /usr/local/bin/amogos-session << EOF
+#!/bin/bash
+export XDG_CONFIG_HOME=$AMOG_CONFIG
+exec startxfce4
+EOF
+chmod +x /usr/local/bin/amogos-session
+chown "$CURRENT_USER":"$CURRENT_USER" /usr/local/bin/amogos-session
+
+# Create session entry
 mkdir -p /usr/share/xsessions
 tee /usr/share/xsessions/amogos.desktop > /dev/null <<EOF
 [Desktop Entry]
 Name=AmogOS
-Exec=env XDG_CONFIG_HOME=$AMOG_CONFIG startxfce4
+Exec=/usr/local/bin/amogos-session
 Type=Application
 EOF
 
