@@ -5,23 +5,22 @@ CURRENT_USER=$(whoami)
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AMOGUS_HOME="/home/amogus"
 AMOG_CONFIG="$AMOGUS_HOME/.config/amogos"
+AUTOSTART_DIR="$AMOGUS_HOME/.config/autostart"
 SKEL_BAK="/etc/skel.bak"
 
 echo "-------------------------------------------------------"
-echo "Initializing AmogOS Deployment..."
+echo "EXECUTING FULL AMOGOS DEPLOYMENT..."
 echo "-------------------------------------------------------"
 
-# 2. BACKUP /ETC/SKEL
-echo "[1/8] Securing system skeleton..."
+# 2. SYSTEM BACKUP (/etc/skel)
+echo "[1/9] Backing up system skeleton..."
 if [ ! -d "$SKEL_BAK" ]; then
     sudo cp -r /etc/skel "$SKEL_BAK"
     echo "Backup created at $SKEL_BAK"
-else
-    echo "Backup already exists. Skipping..."
 fi
 
-# 3. SYSTEM DEPENDENCIES
-echo "[2/8] Requisitioning Gear (Budgie + XFCE)..."
+# 3. INSTALL DEPENDENCIES
+echo "[2/9] Installing Environment (Budgie + XFCE)..."
 if command -v pacman &> /dev/null; then
     sudo pacman -S --noconfirm budgie-desktop xfce4 xfce4-goodies papirus-icon-theme fastfetch wget python
     ARC_FILE="arc-gtk-theme-20221218-2-any.pkg.tar.zst"
@@ -34,50 +33,74 @@ elif command -v dnf &> /dev/null; then
     sudo dnf install -y budgie-desktop xfce4 xfce4-goodies papirus-icon-theme fastfetch wget arc-theme python3
 fi
 
-# 4. CREATE AMOGUS USER
-echo "[3/8] Creating 'amogus' user..."
+# 4. CREATE USER
+echo "[3/9] Initializing 'amogus' user..."
 if ! id "amogus" &>/dev/null; then
     sudo useradd -m -s /bin/bash amogus
     echo "amogus:amogos" | sudo chpasswd
     sudo usermod -aG wheel amogus 2>/dev/null || sudo usermod -aG sudo amogus 2>/dev/null
-    echo "User created: amogus | Password: amogos"
-else
-    echo "User 'amogus' already exists."
 fi
 
-# 5. ASSET DEPLOYMENT
-echo "[4/8] Deploying assets to /home/amogus..."
-sudo mkdir -p "$AMOGUS_HOME/amogify" "$AMOG_CONFIG"
+# 5. DIRECTORY SETUP
+sudo mkdir -p "$AMOG_CONFIG" "$AUTOSTART_DIR" "$AMOGUS_HOME/amogify"
+
+# 6. ASSET DEPLOYMENT & PYTHON PATCHING
+echo "[4/9] Deploying and Patching Rice Files..."
 sudo cp -r "$REPO_DIR"/* "$AMOGUS_HOME/amogify/"
 
-# 6. PYTHON PATH-SWAP ENGINE
-echo "[5/8] Patching config files via Python..."
 sudo python3 - <<PYTHON_END
 import os
-
 target_home = "/home/amogus"
 base_dir = os.path.join(target_home, "amogify/rice")
-
 for root, dirs, files in os.walk(base_dir):
     for f_name in files:
         if f_name.endswith((".txt", ".xml", ".desktop", ".jsonc")):
             f_path = os.path.join(root, f_name)
             try:
-                with open(f_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                with open(f_path, 'r', encoding='utf-8') as f: content = f.read()
                 if "/home/deez" in content:
-                    new_content = content.replace("/home/deez", target_home)
                     with open(f_path, 'w', encoding='utf-8') as f:
-                        f.write(new_content)
-            except Exception as e:
-                pass
+                        f.write(content.replace("/home/deez", target_home))
+            except: pass
 PYTHON_END
 
-# 7. BRANDING (PERMISSION PATCHED)
-echo "[6/8] Configuring Terminal & Auto-Rice..."
+# 7. CREATE AUTOSTART RICE SCRIPT
+echo "[5/9] Creating Autostart Logic..."
+cat <<EOF > /tmp/amogus-rice.sh
+#!/bin/bash
+sleep 3
+# Budgie Application
+if [[ "\$XDG_CURRENT_DESKTOP" == *"Budgie"* ]]; then
+    dconf load /org/gnome/desktop/background/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-desktop.txt"
+    dconf load /com/solus-project/budgie-panel/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-panel.txt"
+    dconf load /org/gnome/desktop/interface/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-interface.txt"
+fi
+# XFCE Application
+if [[ "\$XDG_CURRENT_DESKTOP" == *"XFCE"* ]]; then
+    mkdir -p \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/
+    cp "$AMOGUS_HOME/amogify/rice/xfce/"*.xml \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null
+    xfce4-panel -r
+fi
+# Remove self so it only runs once
+rm -f "$AUTOSTART_DIR/amogos-rice.desktop"
+EOF
+sudo mv /tmp/amogus-rice.sh "$AMOGUS_HOME/amogus-rice.sh"
 
-# Patching the 'Permission Denied' area by wrapping the write in a sudo sh call
-sudo bash -c "cat <<'EOF' > $AMOG_CONFIG/amogus_art.txt
+# 8. CREATE AUTOSTART DESKTOP ENTRY
+cat <<EOF > /tmp/amogos-rice.desktop
+[Desktop Entry]
+Type=Application
+Exec=bash $AMOGUS_HOME/amogus-rice.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=AmogOS-Rice
+EOF
+sudo mv /tmp/amogos-rice.desktop "$AUTOSTART_DIR/amogos-rice.desktop"
+
+# 9. FASTFETCH BRANDING
+echo "[6/9] Branding Fastfetch..."
+cat <<'EOF' > /tmp/amogus_art.txt
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
      ⢀⣴⣿⡿⠛⠉⠙⠛⠛⠛⠛⠻⢿⣿⣷⣤⡀
      ⣼⣿⠋⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⠈⢻⣿⣿⡄
@@ -97,66 +120,36 @@ sudo bash -c "cat <<'EOF' > $AMOG_CONFIG/amogus_art.txt
       ⣿⣿⠀⠀⠀⠀⠀⣿⣿⡇⠀⢹⣿⡆⠀⠀⠀⣸⣿⠇
       ⢿⣿⣦⣄⣀⣠⣴⣿⣿⠁⠀⠈⠻⣿⣿⣿⣿⡿⠏
       ⠈⠛⠻⠿⠿⠿⠿⠋⠁
-EOF"
+EOF
+sudo mv /tmp/amogus_art.txt "$AMOG_CONFIG/amogus_art.txt"
 
-# Permission-safe Fastfetch config
-sudo bash -c "cat <<EOF > $AMOG_CONFIG/fastfetch.jsonc
+cat <<EOF > /tmp/fastfetch.jsonc
 {
-    \"logo\": { \"source\": \"$AMOG_CONFIG/amogus_art.txt\", \"color\": { \"1\": \"red\" } },
-    \"modules\": [
-        { \"type\": \"title\", \"color\": { \"user\": \"red\", \"at\": \"white\", \"host\": \"blue\" } },
-        { \"type\": \"custom\", \"format\": \"AmogOS\", \"key\": \"OS\" },
-        \"os\",
-        \"kernel\",
-        \"uptime\",
-        \"packages\",
-        \"shell\",
-        \"de\",
-        \"wm\",
-        \"terminal\",
-        \"cpu\",
-        \"memory\"
+    "logo": { "source": "$AMOG_CONFIG/amogus_art.txt", "color": { "1": "red" } },
+    "modules": [
+        { "type": "title", "color": { "user": "red", "at": "white", "host": "blue" } },
+        { "type": "custom", "format": "AmogOS", "key": "OS" },
+        "os", "kernel", "uptime", "packages", "shell", "de", "wm", "terminal", "cpu", "memory"
     ]
 }
-EOF"
+EOF
+sudo mv /tmp/fastfetch.jsonc "$AMOG_CONFIG/fastfetch.jsonc"
 
-# Create the login-run rice applier
-sudo bash -c "cat <<EOF > $AMOGUS_HOME/.amogus-init.sh
-#!/bin/bash
-if [[ \"\$XDG_CURRENT_DESKTOP\" == *\"Budgie\"* ]]; then
-    dconf load /org/gnome/desktop/background/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-desktop.txt\"
-    dconf load /com/solus-project/budgie-panel/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-panel.txt\"
-    dconf load /org/gnome/desktop/interface/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-interface.txt\"
-fi
-
-if [[ \"\$XDG_CURRENT_DESKTOP\" == *\"XFCE\"* ]]; then
-    mkdir -p \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/
-    cp \"$AMOGUS_HOME/amogify/rice/xfce/\"*.xml \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null
-fi
-sed -i '/.amogus-init.sh/d' \"\$HOME/.bashrc\"
-EOF"
-sudo chmod +x "$AMOGUS_HOME/.amogus-init.sh"
-
-# 8. BASHRC INJECTION
-echo "[7/8] Finalizing shell profile..."
-sudo bash -c "cat <<EOF >> $AMOGUS_HOME/.bashrc
-
-# AmogOS Initialization
-if [ -f \"\$HOME/.amogus-init.sh\" ]; then
-    bash \"\$HOME/.amogus-init.sh\"
-fi
-
-# Branding
+# Final Shell Profile
+sudo tee -a "$AMOGUS_HOME/.bashrc" > /dev/null <<EOF
 alias fastfetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
 alias neofetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
 fastfetch
-EOF"
+EOF
 
-# 9. PERMISSIONS
-echo "[8/8] Cleaning up permissions..."
+# 10. FINAL PERMISSIONS
+echo "[7/9] Fixing ownership..."
 sudo chown -R amogus:amogus "$AMOGUS_HOME"
+sudo chmod -R 755 "$AMOGUS_HOME"
+sudo chmod +x "$AMOGUS_HOME/amogus-rice.sh"
 
 echo "-------------------------------------------------------"
-echo "INSTALL COMPLETE."
-echo "Login: amogus | Password: amogos"
+echo "INSTALLATION SUCCESSFUL"
+echo "User: amogus | Password: amogos"
+echo "Log in as 'amogus' and wait 3s for the rice to apply."
 echo "-------------------------------------------------------"
