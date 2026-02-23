@@ -1,0 +1,9 @@
+[/]
+cursor-blink=true
+cursor-blink-time=1200
+cursor-size=0
+cursor-theme=''
+font-name='Sans 10'
+gtk-key-theme=''
+gtk-theme='Arc-Darker'
+icon-theme='Papirus-Dark'
