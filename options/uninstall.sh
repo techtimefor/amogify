@@ -27,8 +27,6 @@ fi
 
 # 3. WIPE ASSETS AND CONFIGS
 echo "Removing AmogOS assets and configs..."
-# Remove the custom assets folder
-rm -rf "$HOME/amogify"
 
 # Remove the fastfetch/branding configs
 rm -rf "$HOME/.config/amogos"
