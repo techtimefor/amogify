@@ -17,7 +17,7 @@ echo "[TASK 1/6] Requisitioning Gear..."
 if command -v pacman &> /dev/null; then
     [ ! -f "$ARC_FILE" ] && wget -q -O "$ARC_FILE" "$ARC_URL"
     sudo pacman -U --noconfirm "$ARC_FILE"
-    sudo pacman -S --noconfirm papirus-icon-theme plank neofetch fastfetch xfce4-session lightdm
+    sudo pacman -S --noconfirm papirus-icon-theme plank fastfetch xfce4-session lightdm
 elif command -v apt &> /dev/null; then
     sudo apt update
     sudo apt install -y arc-theme papirus-icon-theme plank fastfetch xfce4-session lightdm
