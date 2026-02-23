@@ -1,19 +1,18 @@
 import sys
 import os
-import time
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
                              QLabel, QHBoxLayout, QStackedWidget, QFrame)
-from PyQt6.QtCore import Qt, QProcess, QTimer
+from PyQt6.QtCore import Qt, QProcess
 from PyQt6.QtGui import QPixmap, QLinearGradient, QPalette, QBrush, QColor
 
 class AmogOSGui(QWidget):
     def __init__(self):
         super().__init__()
-        self.terminal_process = None
+        self.process = None
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle('AmogOS Control Center')
+        self.setWindowTitle('Amogify')
         self.setFixedSize(700, 550)
 
         # 1. VISUAL GRADIENT
@@ -35,14 +34,13 @@ class AmogOSGui(QWidget):
             QPushButton:hover { background-color: rgba(255, 255, 255, 25); }
             #amog_btn { background-color: #ff1a1a; font-size: 16px; border: none; }
             #amog_btn:hover { background-color: #ff4d4d; }
-            #back_btn { background-color: #333; margin-top: 10px; }
-            QLabel#title { font-size: 42px; font-weight: 900; color: white; }
+            QLabel#title { font-size: 50px; font-weight: 900; color: white; margin-bottom: 0px; }
+            QLabel#subtitle { font-size: 18px; color: #ff4444; font-weight: bold; margin-top: 0px; margin-bottom: 20px; }
         """)
 
         self.master_layout = QVBoxLayout(self)
-        self.stack = QStackedWidget()
         
-        # --- SCREEN 1: MENU ---
+        # --- MENU SCREEN ---
         self.menu_widget = QWidget()
         menu_layout = QVBoxLayout(self.menu_widget)
         menu_layout.setContentsMargins(50, 40, 50, 50)
@@ -51,44 +49,33 @@ class AmogOSGui(QWidget):
         title.setObjectName("title")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
+        subtitle = QLabel("The most suspicious OS installer")
+        subtitle.setObjectName("subtitle")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
         btn_amog = QPushButton("AMOGIFY SYSTEM")
         btn_amog.setObjectName("amog_btn")
-        btn_amog.clicked.connect(lambda: self.run_terminal_task("install.sh"))
+        btn_amog.clicked.connect(lambda: self.run_task("install.sh", True))
         
         btn_undo = QPushButton("UN-AMOGIFY (UNDO)")
-        btn_undo.clicked.connect(lambda: self.run_terminal_task("uninstall.sh"))
+        btn_undo.clicked.connect(lambda: self.run_task("uninstall.sh", True))
         
         h_buttons = QHBoxLayout()
         btn_support = QPushButton("Support")
-        btn_support.clicked.connect(lambda: self.run_terminal_task("support.sh", use_sudo=False))
+        btn_support.clicked.connect(lambda: self.run_task("support.sh", False))
         btn_about = QPushButton("About")
-        btn_about.clicked.connect(lambda: self.run_terminal_task("about.sh", use_sudo=False))
+        btn_about.clicked.connect(lambda: self.run_task("about.sh", False))
         
         h_buttons.addWidget(btn_support)
         h_buttons.addWidget(btn_about)
 
         menu_layout.addWidget(title)
+        menu_layout.addWidget(subtitle)
         menu_layout.addWidget(btn_amog)
         menu_layout.addWidget(btn_undo)
         menu_layout.addLayout(h_buttons)
 
-        # --- SCREEN 2: EMBEDDED XFCE TERMINAL ---
-        self.terminal_widget = QWidget()
-        term_layout = QVBoxLayout(self.terminal_widget)
-        
-        # This frame acts as the container for xfce4-terminal
-        self.terminal_container = QFrame()
-        self.terminal_container.setStyleSheet("background-color: black; border: 2px solid #ff4444;")
-        term_layout.addWidget(self.terminal_container)
-
-        self.btn_back = QPushButton("BACK TO MENU")
-        self.btn_back.setObjectName("back_btn")
-        self.btn_back.clicked.connect(self.show_menu)
-        term_layout.addWidget(self.btn_back)
-
-        self.stack.addWidget(self.menu_widget)
-        self.stack.addWidget(self.terminal_widget)
-        self.master_layout.addWidget(self.stack)
+        self.master_layout.addWidget(self.menu_widget)
 
         # 3. CREWMATE OVERLAY
         self.crewmate = QLabel(self)
@@ -97,37 +84,34 @@ class AmogOSGui(QWidget):
         
         if os.path.exists(asset_path):
             pix = QPixmap(asset_path)
-            scaled_pix = pix.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio)
+            scaled_pix = pix.scaled(180, 180, Qt.AspectRatioMode.KeepAspectRatio)
             self.crewmate.setPixmap(scaled_pix)
-            self.crewmate.move(530, 380)
+            self.crewmate.setFixedSize(scaled_pix.size())
+            self.crewmate.move(500, 350)
             self.crewmate.raise_()
 
-    def show_menu(self):
-        if self.terminal_process:
-            self.terminal_process.terminate()
-        self.stack.setCurrentIndex(0)
-        self.crewmate.raise_()
-
-    def run_terminal_task(self, script_name, use_sudo=True):
-        self.stack.setCurrentIndex(1)
-        self.crewmate.raise_()
-        
+    def run_task(self, script_name, use_sudo):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.normpath(os.path.join(base_dir, "..", "options", script_name))
         
-        # Embed XFCE Terminal into the window
-        # We use the --hold flag so you can see the results before closing
-        cmd = ["xfce4-terminal", f"--parent-id={int(self.terminal_container.winId())}", "--hold", "-e"]
-        
+        if not os.path.exists(script_path):
+            print(f"Error: {script_path} not found")
+            return
+
+        # Ensure script is executable
+        os.chmod(script_path, 0o755)
+
+        # We use xfce4-terminal in a new window with a custom title
+        # This is much more stable than trying to "swallow" it into the GUI
         if use_sudo:
             exec_cmd = f"pkexec bash {script_path}"
         else:
             exec_cmd = f"bash {script_path}"
-            
-        cmd.append(exec_cmd)
-        
-        self.terminal_process = QProcess(self)
-        self.terminal_process.start(cmd[0], cmd[1:])
+
+        self.process = QProcess(self)
+        # --title sets the window name, --hold keeps it open for you to read
+        cmd = ["xfce4-terminal", "--title", f"AmogOS - {script_name}", "--hold", "-e", exec_cmd]
+        self.process.start(cmd[0], cmd[1:])
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
