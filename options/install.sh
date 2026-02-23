@@ -125,7 +125,7 @@ cat <<EOF > "$DESKTOP_XML"
         <property name="workspace0" type="empty">
           <property name="color-style" type="int" value="0"/>
           <property name="image-style" type="int" value="5"/>
-          <property name="last-image" type="string" value="$USER_HOME/wallpapers/Neon.png"/>
+          <property name="last-image" type="string" value="$USER_HOME/wallpapers/neon.png"/>
         </property>
       </property>
     </property>
