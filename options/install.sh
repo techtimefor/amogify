@@ -103,11 +103,12 @@ chown -R "$CURRENT_USER":"$CURRENT_USER" "$AMOG_CONFIG"
 echo "[TASK 6/6] Establishing Session..."
 
 # Create wrapper script
-cat > /usr/local/bin/amogos-session << EOF
+cat > /usr/local/bin/amogos-session << 'EOF'
 #!/bin/bash
-export XDG_CONFIG_HOME=$AMOG_CONFIG
+export XDG_CONFIG_HOME=AMOG_CONFIG_PLACEHOLDER
 exec startxfce4
 EOF
+sed -i "s|AMOG_CONFIG_PLACEHOLDER|$AMOG_CONFIG|g" /usr/local/bin/amogos-session
 chmod +x /usr/local/bin/amogos-session
 chown "$CURRENT_USER":"$CURRENT_USER" /usr/local/bin/amogos-session
 
