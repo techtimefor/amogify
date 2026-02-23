@@ -66,19 +66,18 @@ for root, dirs, files in os.walk(base_dir):
                 with open(f_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 if "/home/deez" in content:
-                    print(f"Patching: {f_name}")
                     new_content = content.replace("/home/deez", target_home)
                     with open(f_path, 'w', encoding='utf-8') as f:
                         f.write(new_content)
             except Exception as e:
-                print(f"Error patching {f_name}: {e}")
+                pass
 PYTHON_END
 
-# 7. BRANDING & INITIALIZER
+# 7. BRANDING (PERMISSION PATCHED)
 echo "[6/8] Configuring Terminal & Auto-Rice..."
 
-# Create the ASCII Art
-sudo tee "$AMOG_CONFIG/amogus_art.txt" > /dev/null <<'EOF'
+# Patching the 'Permission Denied' area by wrapping the write in a sudo sh call
+sudo bash -c "cat <<'EOF' > $AMOG_CONFIG/amogus_art.txt
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
      ⢀⣴⣿⡿⠛⠉⠙⠛⠛⠛⠛⠻⢿⣿⣷⣤⡀
      ⣼⣿⠋⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⠈⢻⣿⣿⡄
@@ -98,60 +97,60 @@ sudo tee "$AMOG_CONFIG/amogus_art.txt" > /dev/null <<'EOF'
       ⣿⣿⠀⠀⠀⠀⠀⣿⣿⡇⠀⢹⣿⡆⠀⠀⠀⣸⣿⠇
       ⢿⣿⣦⣄⣀⣠⣴⣿⣿⠁⠀⠈⠻⣿⣿⣿⣿⡿⠏
       ⠈⠛⠻⠿⠿⠿⠿⠋⠁
-EOF
+EOF"
 
-# Create the Fastfetch config with AmogOS custom key ABOVE the base OS
-sudo tee "$AMOG_CONFIG/fastfetch.jsonc" > /dev/null <<EOF
+# Permission-safe Fastfetch config
+sudo bash -c "cat <<EOF > $AMOG_CONFIG/fastfetch.jsonc
 {
-    "logo": { "source": "$AMOG_CONFIG/amogus_art.txt", "color": { "1": "red" } },
-    "modules": [
-        { "type": "title", "color": { "user": "red", "at": "white", "host": "blue" } },
-        { "type": "custom", "format": "AmogOS", "key": "OS" },
-        "os",
-        "kernel",
-        "uptime",
-        "packages",
-        "shell",
-        "de",
-        "wm",
-        "terminal",
-        "cpu",
-        "memory"
+    \"logo\": { \"source\": \"$AMOG_CONFIG/amogus_art.txt\", \"color\": { \"1\": \"red\" } },
+    \"modules\": [
+        { \"type\": \"title\", \"color\": { \"user\": \"red\", \"at\": \"white\", \"host\": \"blue\" } },
+        { \"type\": \"custom\", \"format\": \"AmogOS\", \"key\": \"OS\" },
+        \"os\",
+        \"kernel\",
+        \"uptime\",
+        \"packages\",
+        \"shell\",
+        \"de\",
+        \"wm\",
+        \"terminal\",
+        \"cpu\",
+        \"memory\"
     ]
 }
-EOF
+EOF"
 
 # Create the login-run rice applier
-sudo tee "$AMOGUS_HOME/.amogus-init.sh" > /dev/null <<EOF
+sudo bash -c "cat <<EOF > $AMOGUS_HOME/.amogus-init.sh
 #!/bin/bash
-if [[ "\$XDG_CURRENT_DESKTOP" == *"Budgie"* ]]; then
-    dconf load /org/gnome/desktop/background/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-desktop.txt"
-    dconf load /com/solus-project/budgie-panel/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-panel.txt"
-    dconf load /org/gnome/desktop/interface/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-interface.txt"
+if [[ \"\$XDG_CURRENT_DESKTOP\" == *\"Budgie\"* ]]; then
+    dconf load /org/gnome/desktop/background/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-desktop.txt\"
+    dconf load /com/solus-project/budgie-panel/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-panel.txt\"
+    dconf load /org/gnome/desktop/interface/ < \"$AMOGUS_HOME/amogify/rice/budgie/amogos-interface.txt\"
 fi
 
-if [[ "\$XDG_CURRENT_DESKTOP" == *"XFCE"* ]]; then
+if [[ \"\$XDG_CURRENT_DESKTOP\" == *\"XFCE\"* ]]; then
     mkdir -p \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/
-    cp "$AMOGUS_HOME/amogify/rice/xfce/"*.xml \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null
+    cp \"$AMOGUS_HOME/amogify/rice/xfce/\"*.xml \$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/ 2>/dev/null
 fi
-sed -i '/.amogus-init.sh/d' "\$HOME/.bashrc"
-EOF
+sed -i '/.amogus-init.sh/d' \"\$HOME/.bashrc\"
+EOF"
 sudo chmod +x "$AMOGUS_HOME/.amogus-init.sh"
 
 # 8. BASHRC INJECTION
 echo "[7/8] Finalizing shell profile..."
-sudo tee -a "$AMOGUS_HOME/.bashrc" > /dev/null <<EOF
+sudo bash -c "cat <<EOF >> $AMOGUS_HOME/.bashrc
 
 # AmogOS Initialization
-if [ -f "\$HOME/.amogus-init.sh" ]; then
-    bash "\$HOME/.amogus-init.sh"
+if [ -f \"\$HOME/.amogus-init.sh\" ]; then
+    bash \"\$HOME/.amogus-init.sh\"
 fi
 
 # Branding
 alias fastfetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
 alias neofetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
 fastfetch
-EOF
+EOF"
 
 # 9. PERMISSIONS
 echo "[8/8] Cleaning up permissions..."
