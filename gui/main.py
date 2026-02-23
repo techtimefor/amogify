@@ -1,7 +1,7 @@
 import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
-                             QLabel, QHBoxLayout, QStackedWidget, QFrame)
+                             QLabel, QHBoxLayout)
 from PyQt6.QtCore import Qt, QProcess
 from PyQt6.QtGui import QPixmap, QLinearGradient, QPalette, QBrush, QColor
 
@@ -55,16 +55,16 @@ class AmogOSGui(QWidget):
         
         btn_amog = QPushButton("AMOGIFY SYSTEM")
         btn_amog.setObjectName("amog_btn")
-        btn_amog.clicked.connect(lambda: self.run_task("install.sh", True))
+        btn_amog.clicked.connect(lambda: self.run_task("install.sh"))
         
         btn_undo = QPushButton("UN-AMOGIFY (UNDO)")
-        btn_undo.clicked.connect(lambda: self.run_task("uninstall.sh", True))
+        btn_undo.clicked.connect(lambda: self.run_task("uninstall.sh"))
         
         h_buttons = QHBoxLayout()
         btn_support = QPushButton("Support")
-        btn_support.clicked.connect(lambda: self.run_task("support.sh", False))
+        btn_support.clicked.connect(lambda: self.run_task("support.sh"))
         btn_about = QPushButton("About")
-        btn_about.clicked.connect(lambda: self.run_task("about.sh", False))
+        btn_about.clicked.connect(lambda: self.run_task("about.sh"))
         
         h_buttons.addWidget(btn_support)
         h_buttons.addWidget(btn_about)
@@ -80,6 +80,7 @@ class AmogOSGui(QWidget):
         # 3. CREWMATE OVERLAY
         self.crewmate = QLabel(self)
         script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Path adjustment for asset location
         asset_path = os.path.normpath(os.path.join(script_dir, "assets", "amogus.webp"))
         
         if os.path.exists(asset_path):
@@ -90,8 +91,9 @@ class AmogOSGui(QWidget):
             self.crewmate.move(500, 350)
             self.crewmate.raise_()
 
-    def run_task(self, script_name, use_sudo):
+    def run_task(self, script_name):
         base_dir = os.path.dirname(os.path.abspath(__file__))
+        # Assuming gui.py is in 'scripts' and install.sh is in 'options'
         script_path = os.path.normpath(os.path.join(base_dir, "..", "options", script_name))
         
         if not os.path.exists(script_path):
@@ -101,16 +103,10 @@ class AmogOSGui(QWidget):
         # Ensure script is executable
         os.chmod(script_path, 0o755)
 
-        # We use xfce4-terminal in a new window with a custom title
-        # This is much more stable than trying to "swallow" it into the GUI
-        if use_sudo:
-            exec_cmd = f"pkexec bash {script_path}"
-        else:
-            exec_cmd = f"bash {script_path}"
-
+        # Launching terminal as the current user. 
+        # The bash script itself will handle 'sudo' prompts inside the terminal window.
         self.process = QProcess(self)
-        # --title sets the window name, --hold keeps it open for you to read
-        cmd = ["xfce4-terminal", "--title", f"AmogOS - {script_name}", "--hold", "-e", exec_cmd]
+        cmd = ["xfce4-terminal", "--title", f"AmogOS - {script_name}", "--hold", "-e", f"bash {script_path}"]
         self.process.start(cmd[0], cmd[1:])
 
 if __name__ == '__main__':
