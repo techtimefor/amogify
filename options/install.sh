@@ -1,48 +1,59 @@
 #!/bin/bash
 
-# 1. PATHS & VARIABLES
+# 1. PATHS & GLOBAL VARIABLES
 CURRENT_USER=$(whoami)
 USER_HOME=$HOME
 AMOG_CONFIG="$USER_HOME/.config/amogos"
 FF_CONFIG_DIR="$USER_HOME/.config/fastfetch"
-# Adjusted to your current folder structure
+# Path to your budgie folder (assumes script is inside the 'scripts' folder)
 BUDGIE_RICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../rice/budgie" && pwd)"
 ASSETS_DIR="$USER_HOME/amogify/gui/assets"
 WALLPAPER_DIR="$USER_HOME/amogify/rice/wallpapers"
+BACKUP_PATH="$AMOG_CONFIG/backup_full.txt"
 
-echo "[TASK 1/5] Requisitioning Gear (Multi-Distro Support)..."
+echo "      AMOGOS BUDGIE INSTALLER           "
 
+# 2. TASK 1: INSTALL DEPENDENCIES (Multi-Distro)
+echo "[TASK 1/5] Requisitioning Gear..."
 if command -v pacman &> /dev/null; then
-    # ARCH
-    ARC_FILE="arc-gtk-theme-20221218-2-any.pkg.tar.zst"
-    ARC_URL="https://github.com/techtimefor/arc-theme-prebuilt/raw/refs/heads/main/arc-gtk-theme-20221218-2-any.pkg.tar.zst"
+    # Arch Linux
     sudo pacman -S --noconfirm budgie-desktop budgie-control-center papirus-icon-theme fastfetch wget
+    ARC_FILE="arc-gtk-theme-20221218-2-any.pkg.tar.zst"
+    ARC_URL="https://github.com/techtimefor/arc-theme-prebuilt/raw/refs/heads/main/$ARC_FILE"
     [ ! -f "$ARC_FILE" ] && wget -q -O "$ARC_FILE" "$ARC_URL"
     sudo pacman -U --noconfirm "$ARC_FILE"
-
 elif command -v apt &> /dev/null; then
-    # DEBIAN / UBUNTU
-    sudo apt update
-    sudo apt install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme
-
+    # Debian / Ubuntu / Mint
+    sudo apt update && sudo apt install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme
 elif command -v dnf &> /dev/null; then
-    # FEDORA
+    # Fedora
     sudo dnf install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme
 fi
 
-echo "[TASK 2/5] Deploying Assets (Fixing Paths)..."
-mkdir -p "$FF_CONFIG_DIR" "$ASSETS_DIR" "$WALLPAPER_DIR" "$AMOG_CONFIG"
+# 3. TASK 2: LIVE SYSTEM BACKUP
+echo "[TASK 2/5] Creating full system backup at $BACKUP_PATH..."
+mkdir -p "$AMOG_CONFIG"
+# Snapshot the entire dconf database before touching anything
+dconf dump / > "$BACKUP_PATH"
 
-# Match the exact path from your dconf dump: /home/deez/amogify/rice/wallpapers/Moon.png
+# 4. TASK 3: DEPLOY RICE ASSETS
+echo "[TASK 3/5] Moving wallpaper and icons to local storage..."
+mkdir -p "$ASSETS_DIR" "$WALLPAPER_DIR" "$FF_CONFIG_DIR"
+
+# Copy Amogus Menu Icon
+if [ -f "$BUDGIE_RICE_DIR/amogus.webp" ]; then
+    cp "$BUDGIE_RICE_DIR/amogus.webp" "$ASSETS_DIR/amogus.webp"
+fi
+
+# Copy Moon Wallpaper (rename to Moon.png if it was neon.png)
 if [ -f "$BUDGIE_RICE_DIR/Moon.png" ]; then
     cp "$BUDGIE_RICE_DIR/Moon.png" "$WALLPAPER_DIR/Moon.png"
-else
-    # Fallback if Moon.png is named neon.png in your rice folder
+elif [ -f "$BUDGIE_RICE_DIR/../wallpapers/neon.png" ]; then
     cp "$BUDGIE_RICE_DIR/../wallpapers/neon.png" "$WALLPAPER_DIR/Moon.png"
 fi
-cp "$BUDGIE_RICE_DIR/amogus.webp" "$ASSETS_DIR/amogus.webp"
 
-echo "[TASK 3/5] Setting up Fastfetch Branding..."
+# 5. TASK 4: FASTFETCH BRANDING
+echo "[TASK 4/5] Setting up Imposter Fetch..."
 cat <<'EOF' > "$AMOG_CONFIG/imposter.txt"
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
      ⢀⣴⣿⡿⠛⠉⠙⠛⠛⠛⠛⠻⢿⣿⣷⣤⡀
@@ -76,46 +87,22 @@ cat <<EOF > "$FF_CONFIG_DIR/config.jsonc"
 }
 EOF
 
-echo "[TASK 4/5] Establishing Isolated Budgie Session..."
-# This script is what the Login Manager actually runs
-cat <<EOF > /tmp/amogos-session
-#!/bin/bash
-# 1. Environment Variables (Required to keep session alive)
-export XDG_CURRENT_DESKTOP=Budgie:GNOME
-export XDG_MENU_PREFIX=budgie-
+# Update shell aliases
+grep -q "alias fastfetch=" "$USER_HOME/.bashrc" || echo "alias fastfetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
+grep -q "alias neofetch=" "$USER_HOME/.bashrc" || echo "alias neofetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
 
-# 2. Dynamic Config Loading
-# Path translation from 'deez' to current user
-sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt" | dconf load /org/gnome/desktop/background/
-sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt" | dconf load /com/solus-project/budgie-panel/
-sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-interface.txt" | dconf load /org/gnome/desktop/interface/
+# 6. TASK 5: APPLY DCONF SETTINGS
+echo "[TASK 5/5] Patching username and applying styling..."
 
-# 3. Launch Budgie
-exec budgie-desktop
-EOF
+# Load the three core rice files, replacing 'deez' with the actual username
+sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt" | dconf load /org/gnome/desktop/background/
+sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt" | dconf load /com/solus-project/budgie-panel/
+sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-interface.txt" | dconf load /org/gnome/desktop/interface/
 
-sudo mv /tmp/amogos-session /usr/local/bin/amogos-session
-sudo chmod +x /usr/local/bin/amogos-session
+# Finalize permissions and refresh UI
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$AMOG_CONFIG"
+nohup budgie-panel --replace &>/dev/null &
 
-# Create the Login Manager entry
-sudo mkdir -p /usr/share/xsessions
-cat <<EOF | sudo tee /usr/share/xsessions/amogos.desktop > /dev/null
-[Desktop Entry]
-Name=AmogOS (Budgie)
-Comment=Amogus-themed Budgie Desktop
-Exec=/usr/local/bin/amogos-session
-Type=Application
-DesktopNames=Budgie:GNOME
-EOF
-
-echo "[TASK 5/5] Shell Configuration..."
-# Fastfetch aliases
-if ! grep -q "alias fastfetch=" "$USER_HOME/.bashrc"; then
-    echo "alias fastfetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
-    echo "alias neofetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
-fi
-
-# Fix permissions for the current user
-sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$USER_HOME/.config"
-
-echo "MISSION SUCCESS. Log out and select 'AmogOS (Budgie)' from your login screen."
+echo "INSTALLATION COMPLETE."
+echo "Your original settings were backed up to: $BACKUP_PATH"
+echo "Run uninstall.sh to revert everything back to normal."
