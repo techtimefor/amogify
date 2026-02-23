@@ -2,11 +2,8 @@
 
 # 1. SETUP PATHS
 CURRENT_USER=$(whoami)
-USER_HOME=$HOME
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUDGIE_RICE_DIR="$REPO_DIR/rice/budgie"
-AMOG_CONFIG="$USER_HOME/.config/amogos"
-ASSETS_DIR="$USER_HOME/amogify/gui/assets"
 
 # 2. SYSTEM DEPENDENCIES
 echo "[1/6] Requisitioning Gear..."
@@ -22,15 +19,27 @@ elif command -v dnf &> /dev/null; then
     sudo dnf install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme python3
 fi
 
-# 3. ASSET DEPLOYMENT
-echo "[2/6] Deploying assets..."
-mkdir -p "$ASSETS_DIR" "$USER_HOME/amogify/rice/wallpapers" "$AMOG_CONFIG"
-cp "$BUDGIE_RICE_DIR/amogus.webp" "$ASSETS_DIR/"
-[ -f "$BUDGIE_RICE_DIR/Moon.png" ] && cp "$BUDGIE_RICE_DIR/Moon.png" "$USER_HOME/amogify/rice/wallpapers/"
+# 3. CREATE AMOGUS USER
+echo "[2/6] Creating 'amogus' user..."
+if ! id "amogus" &>/dev/null; then
+    sudo useradd -m -s /bin/bash amogus
+    echo "amogus:amogos" | sudo chpasswd
+    # Add to sudoers so they aren't completely helpless
+    sudo usermod -aG wheel amogus 2>/dev/null || sudo usermod -aG sudo amogus 2>/dev/null
+else
+    echo "User 'amogus' already exists."
+fi
 
-# 4. FASTFETCH BRANDING
-echo "[3/6] Configuring Fastfetch..."
-cat <<'EOF' > "$AMOG_CONFIG/amogus_art.txt"
+AMOGUS_HOME="/home/amogus"
+AMOG_CONFIG="$AMOGUS_HOME/.config/amogos"
+
+# 4. DEPLOY ASSETS & FASTFETCH BRANDING
+echo "[3/6] Deploying Rice & Branding to amogus..."
+sudo mkdir -p "$AMOGUS_HOME/amogify" "$AMOG_CONFIG"
+sudo cp -r "$REPO_DIR"/* "$AMOGUS_HOME/amogify/"
+
+# Create the Imposter ASCII art
+sudo tee "$AMOG_CONFIG/amogus_art.txt" > /dev/null <<'EOF'
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
      ⢀⣴⣿⡿⠛⠉⠙⠛⠛⠛⠛⠻⢿⣿⣷⣤⡀
      ⣼⣿⠋⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⠈⢻⣿⣿⡄
@@ -52,7 +61,8 @@ cat <<'EOF' > "$AMOG_CONFIG/amogus_art.txt"
       ⠈⠛⠻⠿⠿⠿⠿⠋⠁
 EOF
 
-cat <<EOF > "$AMOG_CONFIG/fastfetch.jsonc"
+# Create the custom Fastfetch config
+sudo tee "$AMOG_CONFIG/fastfetch.jsonc" > /dev/null <<EOF
 {
     "logo": { "source": "$AMOG_CONFIG/amogus_art.txt", "color": { "1": "red" } },
     "modules": [
@@ -63,61 +73,45 @@ cat <<EOF > "$AMOG_CONFIG/fastfetch.jsonc"
 }
 EOF
 
-# 5. RUN PYTHON PATH-SWAP (Now run BY this script)
-echo "[4/6] Running Python Path-Swap Engine..."
-python3 - <<PYTHON_END
+# 5. RUN PYTHON PATH-SWAP
+echo "[4/6] Running Python Path-Swap for amogus user..."
+sudo python3 - <<PYTHON_END
 import os
 
-home = "$USER_HOME"
-rice_dir = "$BUDGIE_RICE_DIR"
+target_home = "/home/amogus"
+rice_dir = os.path.join(target_home, "amogify/rice/budgie")
 files = ["amogos-budgie-desktop.txt", "amogos-budgie-panel.txt", "amogos-interface.txt"]
 
 for file_name in files:
     file_path = os.path.join(rice_dir, file_name)
     if os.path.exists(file_path):
-        print(f"Amogifying {file_name}...")
         with open(file_path, 'r') as f:
             content = f.read()
-        
-        # Replace the dev path with the actual user home
-        new_content = content.replace("/home/deez", home)
-        
+        new_content = content.replace("/home/deez", target_home)
         with open(file_path, 'w') as f:
             f.write(new_content)
 PYTHON_END
 
-# 6. CREATE THE BASH SESSION WRAPPER
-echo "[5/6] Creating Shell session wrapper..."
-cat <<EOF > /tmp/amogos-session
-#!/bin/bash
-export XDG_CURRENT_DESKTOP=Budgie
-export XDG_MENU_PREFIX=budgie-
+# 6. INJECT TERMINAL AUTO-START (Fastfetch on launch)
+echo "[5/6] Setting up persistent Fastfetch in amogus .bashrc..."
+sudo tee -a "$AMOGUS_HOME/.bashrc" > /dev/null <<EOF
 
-# Since we already ran the Python swap, we just load the files directly
-dconf load /org/gnome/desktop/background/ < "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt"
-dconf load /com/solus-project/budgie-panel/ < "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt"
-dconf load /org/gnome/desktop/interface/ < "$BUDGIE_RICE_DIR/amogos-interface.txt"
-
-exec budgie-desktop
+# AmogOS Branding
+alias fastfetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
+alias neofetch='fastfetch -c $AMOG_CONFIG/fastfetch.jsonc'
+fastfetch
 EOF
 
-sudo mv /tmp/amogos-session /usr/local/bin/amogos-session
-sudo chmod +x /usr/local/bin/amogos-session
+# 7. APPLY DCONF & PERMISSIONS
+echo "[6/6] Finalizing AmogOS Profile..."
+sudo -u amogus dbus-launch dconf load /org/gnome/desktop/background/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-desktop.txt"
+sudo -u amogus dbus-launch dconf load /com/solus-project/budgie-panel/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-budgie-panel.txt"
+sudo -u amogus dbus-launch dconf load /org/gnome/desktop/interface/ < "$AMOGUS_HOME/amogify/rice/budgie/amogos-interface.txt"
 
-# 7. REGISTER SESSION
-echo "[6/6] Creating .desktop entry..."
-cat <<EOF | sudo tee /usr/share/xsessions/amogos.desktop > /dev/null
-[Desktop Entry]
-Name=AmogOS
-Comment=Among Us themed Budgie Desktop
-Exec=/usr/local/bin/amogos-session
-Type=Application
-DesktopNames=Budgie
-Icon=$ASSETS_DIR/amogus.webp
-EOF
+sudo chown -R amogus:amogus "$AMOGUS_HOME"
 
-sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$AMOG_CONFIG"
 echo "-------------------------------------------------------"
-echo "DONE. Python has finished the path-swap."
-echo "Log out and select AmogOS."
+echo "INSTALL COMPLETE."
+echo "User: amogus | Password: amogos"
+echo "Log out and enter the Skeld as 'amogus'."
 echo "-------------------------------------------------------"
