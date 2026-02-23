@@ -5,8 +5,10 @@ CURRENT_USER=$(whoami)
 USER_HOME=$HOME
 AMOG_CONFIG="$USER_HOME/.config/amogos"
 FF_CONFIG_DIR="$USER_HOME/.config/fastfetch"
+# Adjusted to your current folder structure
 BUDGIE_RICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../rice/budgie" && pwd)"
 ASSETS_DIR="$USER_HOME/amogify/gui/assets"
+WALLPAPER_DIR="$USER_HOME/amogify/rice/wallpapers"
 
 echo "[TASK 1/5] Requisitioning Gear (Multi-Distro Support)..."
 
@@ -26,19 +28,21 @@ elif command -v apt &> /dev/null; then
 elif command -v dnf &> /dev/null; then
     # FEDORA
     sudo dnf install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme
-
-else
-    echo "Unknown package manager. Please install budgie-desktop, papirus-icons, and fastfetch manually."
-    exit 1
 fi
 
-echo "[TASK 2/5] Deploying Assets..."
-mkdir -p "$FF_CONFIG_DIR" "$ASSETS_DIR" "$USER_HOME/wallpapers"
-cp "$BUDGIE_RICE_DIR/../wallpapers/neon.png" "$USER_HOME/wallpapers/neon.png"
+echo "[TASK 2/5] Deploying Assets (Fixing Paths)..."
+mkdir -p "$FF_CONFIG_DIR" "$ASSETS_DIR" "$WALLPAPER_DIR" "$AMOG_CONFIG"
+
+# Match the exact path from your dconf dump: /home/deez/amogify/rice/wallpapers/Moon.png
+if [ -f "$BUDGIE_RICE_DIR/Moon.png" ]; then
+    cp "$BUDGIE_RICE_DIR/Moon.png" "$WALLPAPER_DIR/Moon.png"
+else
+    # Fallback if Moon.png is named neon.png in your rice folder
+    cp "$BUDGIE_RICE_DIR/../wallpapers/neon.png" "$WALLPAPER_DIR/Moon.png"
+fi
 cp "$BUDGIE_RICE_DIR/amogus.webp" "$ASSETS_DIR/amogus.webp"
 
 echo "[TASK 3/5] Setting up Fastfetch Branding..."
-# (Ascii art block remains the same as previous version)
 cat <<'EOF' > "$AMOG_CONFIG/imposter.txt"
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
      ⢀⣴⣿⡿⠛⠉⠙⠛⠛⠛⠛⠻⢿⣿⣷⣤⡀
@@ -73,34 +77,45 @@ cat <<EOF > "$FF_CONFIG_DIR/config.jsonc"
 EOF
 
 echo "[TASK 4/5] Establishing Isolated Budgie Session..."
+# This script is what the Login Manager actually runs
 cat <<EOF > /tmp/amogos-session
 #!/bin/bash
-# Replace paths dynamically for the current user
+# 1. Environment Variables (Required to keep session alive)
+export XDG_CURRENT_DESKTOP=Budgie:GNOME
+export XDG_MENU_PREFIX=budgie-
+
+# 2. Dynamic Config Loading
+# Path translation from 'deez' to current user
 sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt" | dconf load /org/gnome/desktop/background/
 sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt" | dconf load /com/solus-project/budgie-panel/
 sed "s|/home/deez|/home/\$USER|g" "$BUDGIE_RICE_DIR/amogos-interface.txt" | dconf load /org/gnome/desktop/interface/
 
+# 3. Launch Budgie
 exec budgie-desktop
 EOF
 
 sudo mv /tmp/amogos-session /usr/local/bin/amogos-session
 sudo chmod +x /usr/local/bin/amogos-session
 
+# Create the Login Manager entry
 sudo mkdir -p /usr/share/xsessions
 cat <<EOF | sudo tee /usr/share/xsessions/amogos.desktop > /dev/null
 [Desktop Entry]
 Name=AmogOS (Budgie)
+Comment=Amogus-themed Budgie Desktop
 Exec=/usr/local/bin/amogos-session
 Type=Application
 DesktopNames=Budgie:GNOME
 EOF
 
-echo "[TASK 5/5] Finalizing Shell & Permissions..."
+echo "[TASK 5/5] Shell Configuration..."
+# Fastfetch aliases
 if ! grep -q "alias fastfetch=" "$USER_HOME/.bashrc"; then
     echo "alias fastfetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
     echo "alias neofetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
 fi
 
-sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$USER_HOME/wallpapers" "$AMOG_CONFIG"
+# Fix permissions for the current user
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$USER_HOME/.config"
 
-echo "AMOGOS DEPLOYED. Log out and select 'AmogOS (Budgie)' at the login screen."
+echo "MISSION SUCCESS. Log out and select 'AmogOS (Budgie)' from your login screen."
