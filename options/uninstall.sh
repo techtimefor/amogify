@@ -1,39 +1,36 @@
 #!/bin/bash
 echo "Ejecting the imposter..."
 
-# 1. REMOVE SESSION FILES (Sudo required)
-# This removes the entry from the login screen (LightDM/GDM)
-sudo rm -f /usr/share/xsessions/amogos.desktop
+# 1. RESTORE DCONF CONFIGURATION
+BACKUP_PATH="$HOME/.config/amogos/backup_full.txt"
 
-# This removes the launch wrapper we created to fix the "not found" error
-sudo rm -f /usr/local/bin/amogos-session
-
-# 2. RESTORE SYSTEM CONFIGS
-if [ -f "/etc/lightdm/lightdm-gtk-greeter.conf.bak" ]; then
-    echo "Restoring LightDM greeter..."
-    sudo mv /etc/lightdm/lightdm-gtk-greeter.conf.bak /etc/lightdm/lightdm-gtk-greeter.conf
+if [ -f "$BACKUP_PATH" ]; then
+    echo "Restoring original desktop layout and theme..."
+    # This force-loads your original snapshot back into dconf
+    dconf load / < "$BACKUP_PATH"
+    
+    # Restart the panel live to revert the layout
+    nohup budgie-panel --replace &>/dev/null &
+else
+    echo "Warning: No backup found at $BACKUP_PATH. UI cannot be auto-restored."
 fi
 
-# 3. CLEAN HOME FILES (No sudo needed)
-echo "Cleaning user configuration..."
-rm -rf "$HOME/.config/amogos"
-rm -rf "$HOME/.config/fastfetch/amogus.txt"
-rm -rf "$HOME/.config/fastfetch/config.jsonc"
-
-# Restore backups
-[ -f "$HOME/.face.bak" ] && mv "$HOME/.face.bak" "$HOME/.face"
+# 2. CLEAN UP BASHRC (Aliases)
+echo "Cleaning up shell aliases..."
 if [ -f "$HOME/.bashrc.bak" ]; then
     mv "$HOME/.bashrc.bak" "$HOME/.bashrc"
 else
-    # If no backup, just remove the aliases we added
     sed -i '/alias neofetch=/d' "$HOME/.bashrc"
     sed -i '/alias fastfetch=/d' "$HOME/.bashrc"
 fi
 
-# 4. REFRESH SYSTEM
-if command -v update-desktop-database &> /dev/null; then
-    sudo update-desktop-database
-fi
+# 3. WIPE AMOGOS FILES
+echo "Removing AmogOS assets and configs..."
+rm -rf "$HOME/amogify"
+rm -rf "$HOME/.config/fastfetch/config.jsonc"
+
+# We remove the config folder LAST so we don't delete the backup before loading it
+rm -rf "$HOME/.config/amogos"
 
 echo "System restored. You are no longer sus."
-echo "Please reboot or restart LightDM to see changes."
+echo "Note: Some theme changes may require a logout to fully refresh."
