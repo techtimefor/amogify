@@ -1,0 +1,6 @@
+[/]
+color-shading-type='solid'
+picture-options='scaled'
+picture-uri='file:///home/deez/amogify/rice/wallpapers/Moon.png'
+primary-color='#000000000000'
+secondary-color='#000000'

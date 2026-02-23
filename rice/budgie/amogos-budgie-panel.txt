@@ -1,0 +1,90 @@
+[/]
+migration-level=1
+panels=['c0c82c8a-10cb-11f1-9cdd-080027c45c3d', '36639156-10cb-11f1-9cdd-080027c45c3d']
+
+[applets/{3dce5c46-10cb-11f1-9cdd-080027c45c3d}]
+alignment='start'
+name='Budgie Menu'
+position=0
+
+[applets/{5869bb18-10cb-11f1-9cdd-080027c45c3d}]
+alignment='end'
+name='Notifications'
+position=2
+
+[applets/{6b98b360-10cb-11f1-9cdd-080027c45c3d}]
+alignment='end'
+name='Clock'
+position=1
+
+[applets/{84cad326-10cc-11f1-9d41-080027c45c3d}]
+alignment='start'
+name='Task List'
+position=2
+
+[applets/{906ae752-10cc-11f1-9d41-080027c45c3d}]
+alignment='start'
+name='Separator'
+position=1
+
+[applets/{aeb73968-10cc-11f1-9d41-080027c45c3d}]
+alignment='end'
+name='Trash Bin'
+position=3
+
+[applets/{b32f1eee-10cb-11f1-9cdd-080027c45c3d}]
+alignment='end'
+name='Raven Trigger'
+position=4
+
+[applets/{c7cc25c6-10cc-11f1-9d41-080027c45c3d}]
+alignment='end'
+name='Separator'
+position=0
+
+[applets/{cb673258-10cb-11f1-9cdd-080027c45c3d}]
+alignment='center'
+name='Budgie Menu'
+position=0
+
+[applets/{ce6f5600-10cc-11f1-9d41-080027c45c3d}]
+alignment='start'
+name='Separator'
+position=3
+
+[applets/{d65ea966-10cb-11f1-9cdd-080027c45c3d}]
+alignment='center'
+name='Icon Task List'
+position=1
+
+[instance/budgie-menu/{3dce5c46-10cb-11f1-9cdd-080027c45c3d}]
+enable-menu-label=true
+menu-compact=false
+menu-headers=false
+menu-icon='/home/deez/amogify/gui/assets/amogus.webp'
+menu-label='AmogOS Menu'
+use-default-menu-icon=false
+
+[instance/budgie-menu/{cb673258-10cb-11f1-9cdd-080027c45c3d}]
+enable-menu-label=false
+menu-compact=true
+menu-headers=false
+
+[panels/{36639156-10cb-11f1-9cdd-080027c45c3d}]
+applets=['3dce5c46-10cb-11f1-9cdd-080027c45c3d', '5869bb18-10cb-11f1-9cdd-080027c45c3d', '6b98b360-10cb-11f1-9cdd-080027c45c3d', 'b32f1eee-10cb-11f1-9cdd-080027c45c3d', 'aeb73968-10cc-11f1-9d41-080027c45c3d', '906ae752-10cc-11f1-9d41-080027c45c3d', 'ce6f5600-10cc-11f1-9d41-080027c45c3d', '84cad326-10cc-11f1-9d41-080027c45c3d', 'c7cc25c6-10cc-11f1-9d41-080027c45c3d']
+dock-mode=false
+enable-shadow=true
+location='top'
+size=36
+spacing=2
+transparency='dynamic'
+
+[panels/{c0c82c8a-10cb-11f1-9cdd-080027c45c3d}]
+applets=['d65ea966-10cb-11f1-9cdd-080027c45c3d', 'cb673258-10cb-11f1-9cdd-080027c45c3d']
+autohide='intelligent'
+dock-mode=true
+enable-shadow=true
+location='bottom'
+size=36
+spacing=11
+transparency='always'
