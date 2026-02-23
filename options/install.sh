@@ -112,7 +112,7 @@ EOF
 echo "[TASK 5/6] Establishing Session & Neon Wallpaper..."
 # Copy Neon wallpaper to a reliable path
 mkdir -p "$USER_HOME/wallpapers"
-cp "$RICE_DIR/wallpapers/Neon.png" "$USER_HOME/wallpapers/Neon.png"
+cp "$RICE_DIR/wallpapers/neon.png" "$USER_HOME/wallpapers/neon.png"
 
 # Force wallpaper in XFCE XML
 DESKTOP_XML="$XFSET_DIR/xfce4-desktop.xml"
