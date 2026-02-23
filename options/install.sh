@@ -5,15 +5,22 @@ CURRENT_USER=$(whoami)
 USER_HOME=$HOME
 AMOG_CONFIG="$USER_HOME/.config/amogos"
 FF_CONFIG_DIR="$USER_HOME/.config/fastfetch"
-# Path to your budgie folder (assumes script is inside the 'scripts' folder)
+# Location of your budgie folder relative to this script
 BUDGIE_RICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../rice/budgie" && pwd)"
 ASSETS_DIR="$USER_HOME/amogify/gui/assets"
 WALLPAPER_DIR="$USER_HOME/amogify/rice/wallpapers"
 BACKUP_PATH="$AMOG_CONFIG/backup_full.txt"
 
+# Safety Check: Ensure the script isn't run as root/sudo globally
+if [ "$EUID" -eq 0 ]; then 
+  echo "ERROR: Please do not run this script with sudo."
+  echo "The script will ask for your password only when installing packages."
+  exit 1
+fi
+
 echo "      AMOGOS BUDGIE INSTALLER           "
 
-# 2. TASK 1: INSTALL DEPENDENCIES (Multi-Distro)
+# 2. TASK 1: INSTALL DEPENDENCIES (Needs Sudo)
 echo "[TASK 1/5] Requisitioning Gear..."
 if command -v pacman &> /dev/null; then
     # Arch Linux
@@ -30,14 +37,14 @@ elif command -v dnf &> /dev/null; then
     sudo dnf install -y budgie-desktop papirus-icon-theme fastfetch wget arc-theme
 fi
 
-# 3. TASK 2: LIVE SYSTEM BACKUP
+# 3. TASK 2: LIVE SYSTEM BACKUP (No Sudo)
 echo "[TASK 2/5] Creating full system backup at $BACKUP_PATH..."
 mkdir -p "$AMOG_CONFIG"
-# Snapshot the entire dconf database before touching anything
+# Snapshot the entire dconf database. This is your "Undo" button.
 dconf dump / > "$BACKUP_PATH"
 
-# 4. TASK 3: DEPLOY RICE ASSETS
-echo "[TASK 3/5] Moving wallpaper and icons to local storage..."
+# 4. TASK 3: DEPLOY RICE ASSETS (No Sudo)
+echo "[TASK 3/5] Moving rice assets to local storage..."
 mkdir -p "$ASSETS_DIR" "$WALLPAPER_DIR" "$FF_CONFIG_DIR"
 
 # Copy Amogus Menu Icon
@@ -52,7 +59,7 @@ elif [ -f "$BUDGIE_RICE_DIR/../wallpapers/neon.png" ]; then
     cp "$BUDGIE_RICE_DIR/../wallpapers/neon.png" "$WALLPAPER_DIR/Moon.png"
 fi
 
-# 5. TASK 4: FASTFETCH BRANDING
+# 5. TASK 4: FASTFETCH BRANDING (No Sudo)
 echo "[TASK 4/5] Setting up Imposter Fetch..."
 cat <<'EOF' > "$AMOG_CONFIG/imposter.txt"
            ⣠⣤⣤⣤⣤⣤⣤⣤⣤⣄⡀
@@ -91,18 +98,16 @@ EOF
 grep -q "alias fastfetch=" "$USER_HOME/.bashrc" || echo "alias fastfetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
 grep -q "alias neofetch=" "$USER_HOME/.bashrc" || echo "alias neofetch='fastfetch -c $FF_CONFIG_DIR/config.jsonc'" >> "$USER_HOME/.bashrc"
 
-# 6. TASK 5: APPLY DCONF SETTINGS
+# 6. TASK 5: APPLY DCONF SETTINGS (No Sudo)
 echo "[TASK 5/5] Patching username and applying styling..."
 
-# Load the three core rice files, replacing 'deez' with the actual username
-sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt" | dconf load /org/gnome/desktop/background/
-sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt" | dconf load /com/solus-project/budgie-panel/
-sed "s|/home/deez|/home/$CURRENT_USER|g" "$BUDGIE_RICE_DIR/amogos-interface.txt" | dconf load /org/gnome/desktop/interface/
+# Apply the three core rice files, replacing 'deez' with your actual username
+sed "s|/home/deez|$USER_HOME|g" "$BUDGIE_RICE_DIR/amogos-budgie-desktop.txt" | dconf load /org/gnome/desktop/background/
+sed "s|/home/deez|$USER_HOME|g" "$BUDGIE_RICE_DIR/amogos-budgie-panel.txt" | dconf load /com/solus-project/budgie-panel/
+sed "s|/home/deez|$USER_HOME|g" "$BUDGIE_RICE_DIR/amogos-interface.txt" | dconf load /org/gnome/desktop/interface/
 
 # Finalize permissions and refresh UI
-sudo chown -R $CURRENT_USER:$CURRENT_USER "$USER_HOME/amogify" "$AMOG_CONFIG"
 nohup budgie-panel --replace &>/dev/null &
 
 echo "INSTALLATION COMPLETE."
 echo "Your original settings were backed up to: $BACKUP_PATH"
-echo "Run uninstall.sh to revert everything back to normal."
